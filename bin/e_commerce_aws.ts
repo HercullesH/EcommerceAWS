@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { ProductsAppStack } from '../lib/productsApp-stack';
 import { EcommerceApiStack } from '../lib/ecommerceApi-stack';
+import { ProductsAppLayersStack } from '../lib/productsAppLayers-stack'
 
 //comando 'cdk bootstrap' execute apenas uma vez
 
@@ -17,10 +18,17 @@ const tags = {
   team: 'SiecolaCode'
 }
 
+const productsAppLayersStack = new ProductsAppLayersStack(app, 'ProductsAppLayers', {
+  tags: tags,
+  env: env
+})
+
 const productsAppStack = new ProductsAppStack(app, 'ProductsApp', {
   tags: tags,
   env: env
 })
+
+productsAppStack.addDependency(productsAppLayersStack)
 
 const eCommerceApiStack = new EcommerceApiStack(app, 'EcommerceApi', {
   productsFetchHandler: productsAppStack.productsFetchHandler,
