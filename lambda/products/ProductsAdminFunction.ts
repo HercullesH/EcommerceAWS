@@ -8,31 +8,34 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
     const apiRequestId = event.requestContext.requestId;
 
     console.log(` API Gateway RequestId: ${apiRequestId} - Lambda RequestId: ${lambdaRequestId}`)
-    if (event.resource === '/products') {
-        if(method === 'GET') {
-            console.log('GET')
 
-            return {
-                statusCode: 200,
-                body: JSON.stringify({
-                    message: 'GET Products - OK'
-                })
-            }
+    if (event.resource === '/products') {
+        console.log('POST /products')
+
+        return {
+            statusCode: 201,
+            body: 'POST /PRODUCTS'
         }
     } else if (event.resource === '/products/{id}') {
-        const productId = event.pathParameters!.id as string
-        console.log('GET /products/' + productId)
+        const productId = event.pathParameters!.id as string;
+        if (event.httpMethod === 'PUT') {
+            console.log('PUT /products/' + productId)
+
         return {
-            statusCode:200,
-            body: 'GET /products/' + productId
+            statusCode: 200,
+            body: 'PUT /PRODUCTS/' + productId
+        }
+        } else if (event.httpMethod === 'DELETE') {
+            console.log('DELETE /products/' + productId)
+            return {
+                statusCode: 200,
+                body: 'DELETE /PRODUCTS/' + productId
+            }
         }
     }
 
     return {
         statusCode: 400,
-        body: JSON.stringify({
-            message: 'Bad Request, vc errou'
-        })
+        body: 'Bad Request'
     }
-
 }
