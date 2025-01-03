@@ -5,15 +5,16 @@ import * as cwlogs from "aws-cdk-lib/aws-logs"
 import { Construct } from "constructs"
 
 interface ECommerceApiStackProps extends cdk.StackProps {
-    productsFetchHandler: lambdaNodeJS.NodejsFunction
-    productsAdminHandler: lambdaNodeJS.NodejsFunction
+    productsFetchHandler: lambdaNodeJS.NodejsFunction;
+    productsAdminHandler: lambdaNodeJS.NodejsFunction;
+    ordersHandler: lambdaNodeJS.NodejsFunction;
 }
 
 export class EcommerceApiStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props: ECommerceApiStackProps){
         super(scope, id , props)
 
-        const logGroup= new cwlogs.LogGroup(this, 'EcommerceApiLogs')
+        const logGroup = new cwlogs.LogGroup(this, 'EcommerceApiLogs')
         const api = new apigateway.RestApi(this, 'ECommerceApi', {
             restApiName: 'ECommerceApi',
             cloudWatchRole: true,
@@ -33,6 +34,32 @@ export class EcommerceApiStack extends cdk.Stack {
             }
         })
 
+        this.createProductsService(props, api)
+        this.createOrdersService(props, api)
+    }
+
+    private createOrdersService(props: ECommerceApiStackProps, api: apigateway.RestApi) {
+        const ordersIntegration = new apigateway.LambdaIntegration(props.ordersHandler)
+
+        const orderDeletionValidator = new apigateway.RequestValidator(this, 'OrderDeletionValidator', {
+            restApi: api,
+            requestValidatorName: 'OrderDeletionValidator',
+            validateRequestParameters: true,
+        })
+
+        const ordersResource = api.root.addResource('orders')
+        ordersResource.addMethod('GET', ordersIntegration)
+        ordersResource.addMethod('DELETE', ordersIntegration, {
+            requestParameters: {
+                'method.request.querystring.email': true,
+                'method.request.querystring.orderId': true,
+            },
+            requestValidator: orderDeletionValidator
+        })
+        ordersResource.addMethod('POST', ordersIntegration)
+    }
+
+    private createProductsService(props: ECommerceApiStackProps, api: apigateway.RestApi) {
         const productsFetchIntegration  = new apigateway.LambdaIntegration(props.productsFetchHandler)
 
         const productsResource = api.root.addResource('products')
