@@ -25,7 +25,7 @@ export interface OrderRequest {
     }
 }
 
-export interface OrderProduct {
+export interface OrderProductResponse {
     code: string,
     price: number
 }
@@ -42,5 +42,5 @@ export interface OrderResponse {
         type: ShippingType,
         carrier: CarrierType
     },
-    products: OrderProduct[]
+    products: OrderProductResponse[]
 }
