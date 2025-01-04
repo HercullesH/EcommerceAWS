@@ -6,9 +6,11 @@ import * as ssm from 'aws-cdk-lib/aws-ssm'
 import { Construct } from 'constructs'
 import * as sns from 'aws-cdk-lib/aws-sns'
 import * as subs from 'aws-cdk-lib/aws-sns-subscriptions'
+import * as iam from 'aws-cdk-lib/aws-iam'
 
 interface OrdersAppStackProps extends cdk.StackProps {
-    productsDdb: dynamodb.Table
+    productsDdb: dynamodb.Table,
+    eventsDdb: dynamodb.Table
 }
 
 export class OrdersAppStack extends cdk.Stack {
@@ -81,5 +83,43 @@ export class OrdersAppStack extends cdk.Stack {
         ordersDdb.grantReadWriteData(this.ordersHandler)
         props.productsDdb.grantReadData(this.ordersHandler)
         ordersTopic.grantPublish(this.ordersHandler)
+        
+        const orderEventsHandler = new lambdaNodeJS.NodejsFunction(this, 'OrderEventsFunction', {
+            functionName: 'OrderEventsFunction',
+            entry: 'lambda/orders/orderEventsFunction.ts',
+            handler: 'handler',
+            memorySize: 512,
+            runtime: lambda.Runtime.NODEJS_20_X,
+            timeout: cdk.Duration.seconds(2),
+            bundling: {
+                minify: true,
+                sourceMap: false,
+                nodeModules: [
+                    'aws-xray-sdk-core'
+                ]
+            },
+            environment: {
+                EVENTS_DDB: props.eventsDdb.tableName
+            },
+            layers: [
+                orderEventsLayer
+            ],
+            tracing: lambda.Tracing.ACTIVE,
+            insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+        })
+
+        ordersTopic.addSubscription(new subs.LambdaSubscription(orderEventsHandler))
+        const eventsDdbPolicy = new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ['dynamodb:PutItem'],
+            resources: [props.eventsDdb.tableArn],
+            conditions: {
+                ['ForAllValues:StringLike']: {
+                    'dynamodb:LeadingKeys': ['#order_*']
+                }
+            }
+        })
+
+        orderEventsHandler.addToRolePolicy(eventsDdbPolicy)
     }
 }
