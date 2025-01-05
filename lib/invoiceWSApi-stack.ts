@@ -8,10 +8,20 @@ import * as s3 from 'aws-cdk-lib/aws-s3'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications'
 import { Construct } from 'constructs'
+import * as ssm from 'aws-cdk-lib/aws-ssm'
 
 export class InvoiceWSApiStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props)
+
+        const invoiceTransactionLayerArn = ssm.StringParameter.valueForStringParameter(this, 'InvoiceTransactionLayerVersionArn')
+        const invoiceTransactionLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'InvoiceTransactionLayer', invoiceTransactionLayerArn)
+
+        const invoiceLayerArn = ssm.StringParameter.valueForStringParameter(this, 'InvoiceRepositoryLayerVersionArn')
+        const invoiceLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'InvoiceRepositoryLayer', invoiceLayerArn)
+
+        const invoiceWSConnectionLayerArn = ssm.StringParameter.valueForStringParameter(this, 'InvoiceWSConnectionLayerVersionArn')
+        const invoiceWSConnectionLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'InvoiceWSConnectionLayer', invoiceWSConnectionLayerArn)
 
         //Invoice and invoice transaction DDB
         const invoicesDdb = new dynamodb.Table(this, 'InvoicesDdb', {
@@ -114,6 +124,10 @@ export class InvoiceWSApiStack extends cdk.Stack {
                     'aws-xray-sdk-core'
                 ]
             },
+            layers: [
+                invoiceTransactionLayer,
+                invoiceWSConnectionLayer
+            ],
             environment: {
                 INVOICE_DDB: invoicesDdb.tableName,
                 BUCKET_NAME: bucket.bucketName,
@@ -157,6 +171,11 @@ export class InvoiceWSApiStack extends cdk.Stack {
                     'aws-xray-sdk-core'
                 ]
             },
+            layers: [
+                invoiceLayer,
+                invoiceTransactionLayer,
+                invoiceWSConnectionLayer
+            ],
             environment: {
                 INVOICE_DDB: invoicesDdb.tableName,
                 INVOICE_WSAPI_ENDPOINT: wsApiEndpoint
@@ -190,6 +209,10 @@ export class InvoiceWSApiStack extends cdk.Stack {
                     'aws-xray-sdk-core'
                 ]
             },
+            layers: [
+                invoiceTransactionLayer,
+                invoiceWSConnectionLayer
+            ],
             environment: {
                 INVOICE_DDB: invoicesDdb.tableName,
                 INVOICE_WSAPI_ENDPOINT: wsApiEndpoint
