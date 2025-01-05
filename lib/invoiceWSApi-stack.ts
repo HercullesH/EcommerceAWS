@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib'
 import * as apigatewayv2 from '@aws-cdk/aws-apigatewayv2-alpha'
-import * as apigatewayv2_integration from '@aws-cdk/aws-apigatewayv2-integrations-alpha'
+import * as apigatewayv2_integrations from '@aws-cdk/aws-apigatewayv2-integrations-alpha'
 import * as lambdaNodeJS from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
@@ -80,6 +80,24 @@ export class InvoiceWSApiStack extends cdk.Stack {
 })
 
         //WebSocket API
+
+        const webSocketApi = new apigatewayv2.WebSocketApi(this, 'InvoiceWSApi', {
+            apiName: 'InvoiceWSApi',
+            connectRouteOptions: {
+                integration: new apigatewayv2_integrations.WebSocketLambdaIntegration('ConnectionHandler', connectionHandler)
+            },
+            disconnectRouteOptions: {
+                integration: new apigatewayv2_integrations.WebSocketLambdaIntegration('DisconnectionHandler', disconnectionHandler)
+            }
+        })
+
+        const stage = 'prod'
+        const wsApiEndpoint = `${webSocketApi.apiEndpoint}/${stage}`
+        new apigatewayv2.WebSocketStage(this, 'InvoiceWSApiStage', {
+            webSocketApi: webSocketApi,
+            stageName: stage,
+            autoDeploy: true
+        })
 
         //Invoice URL handler
 
