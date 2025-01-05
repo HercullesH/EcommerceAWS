@@ -237,11 +237,13 @@ export class OrdersAppStack extends cdk.Stack {
             insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
         })
 
+        props.eventsDdb.grantReadData(this.orderEventsFetchHandler)
+
         const eventsFetchDdbPolicy = new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             actions: ['dynamodb:Query'],
             resources: [`${props.eventsDdb.tableArn}/index/emailIndex`]
         })
-        this.orderEventsFetchHandler.addToRolePolicy(eventsFetchDdbPolicy)
+        //this.orderEventsFetchHandler.addToRolePolicy(eventsFetchDdbPolicy)
     }
 }
