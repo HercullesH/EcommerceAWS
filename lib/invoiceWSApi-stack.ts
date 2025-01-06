@@ -116,7 +116,7 @@ export class InvoiceWSApiStack extends cdk.Stack {
             handler: 'handler',
             memorySize: 512,
             runtime: lambda.Runtime.NODEJS_20_X,
-            timeout: cdk.Duration.seconds(2),
+            timeout: cdk.Duration.seconds(5),
             bundling: {
                 minify: true,
                 sourceMap: false,
@@ -136,16 +136,16 @@ export class InvoiceWSApiStack extends cdk.Stack {
             tracing: lambda.Tracing.ACTIVE,
         })
 
-        const invoicesDdbWriteTransactionPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ['dynamodb:PutItem'],
-            resources: [ invoicesDdb.tableArn ],
-            conditions: {
-                ['ForAllValues:StringLike']: {
-                    'dynamodb:LeadingKeys': ['#transaction']
-                }
-            }
-        })
+        // const invoicesDdbWriteTransactionPolicy = new iam.PolicyStatement({
+        //     effect: iam.Effect.ALLOW,
+        //     actions: ['dynamodb:PutItem'],
+        //     resources: [ invoicesDdb.tableArn ],
+        //     conditions: {
+        //         ['ForAllValues:StringLike']: {
+        //             'dynamodb:LeadingKeys': ['#transaction']
+        //         }
+        //     }
+        // })
         const invoicesBucketPutObjectPolicy = new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             actions: ['s3:PutObject'],
@@ -153,7 +153,8 @@ export class InvoiceWSApiStack extends cdk.Stack {
         })
 
         getUrlHandler.addToRolePolicy(invoicesBucketPutObjectPolicy)
-        getUrlHandler.addToRolePolicy(invoicesDdbWriteTransactionPolicy)
+        // getUrlHandler.addToRolePolicy(invoicesDdbWriteTransactionPolicy)
+        invoicesDdb.grantReadWriteData(getUrlHandler)
         webSocketApi.grantManageConnections(getUrlHandler)
 
         //Invoice import handler

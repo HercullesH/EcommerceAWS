@@ -23,13 +23,9 @@ const invoiceWSService = new InvoiceWSService(apigwManagementApi)
 
 export async function handler (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
 
-    console.log(event)
-
     const lambdaRequestId = context.awsRequestId
     const connectionId = event.requestContext.connectionId!
 
-    console.log(`ConnectionId:  ${connectionId} - Lambda RequestId: ${lambdaRequestId}`)
-    console.log(`WebSocket API Endpoint: ${invoiceWsApiEndpoint}`);
 
     const key = uuid()
     const expires = 300
@@ -39,9 +35,16 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
         Expires: expires
     })
 
+    console.log('chegou no signedUrl', {
+        Bucket: bucketName,
+        Key: key,
+        Expires: expires
+    })
+
     const timestamp = Date.now()
     const ttl = ~~(timestamp / 1000) + ( 60 * 2 )
-    await invoiceTransactionRepository.createInvoiceTransaction({
+    console.log('antes de montar invoice')
+    const invoice = {
         pk: '#transaction',
         sk: key,
         ttl: ttl,
@@ -51,8 +54,16 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
         expiresIn: expires,
         connectionId: connectionId,
         endpoint: invoiceWsApiEndpoint
-    })
-
+    }
+    console.log('teste do objeto de invoice: ',invoice)
+    try {
+        await invoiceTransactionRepository.createInvoiceTransaction(invoice)
+    console.log('criou o invoice?')
+    } catch (error) {
+        console.error(error)
+    }
+    
+    console.log('continua o código')
     const postData = JSON.stringify({
         url: signedUrlPut,
         expires: expires,

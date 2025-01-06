@@ -31,11 +31,20 @@ export class InvoiceTransactionRepository {
     }
 
     async createInvoiceTransaction(invoiceTransaction: InvoiceTransaction) :Promise<InvoiceTransaction> {
-        await this.ddbClient.put({
-            TableName: this.invoiceTransactionDdb,
-            Item: invoiceTransaction
-        })
-
-        return invoiceTransaction
+        try {
+            console.log('Saving transaction to DynamoDB:', {
+                invoiceTransaction,
+                tableName: this.invoiceTransactionDdb
+            });
+            await this.ddbClient.put({
+                TableName: this.invoiceTransactionDdb,
+                Item: invoiceTransaction
+            }).promise();
+            console.log('Transaction saved successfully');
+            return invoiceTransaction;
+        } catch (error) {
+            console.error('Error saving transaction:', error);
+            throw error; // Rethrow to ensure the error propagates
+        }
     }
 }
