@@ -29,11 +29,12 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
     const connectionId = event.requestContext.connectionId!
 
     console.log(`ConnectionId:  ${connectionId} - Lambda RequestId: ${lambdaRequestId}`)
+    console.log(`WebSocket API Endpoint: ${invoiceWsApiEndpoint}`);
 
     const key = uuid()
     const expires = 300
     const signedUrlPut = await s3Client.getSignedUrlPromise('putObject', {
-        bucket: bucketName,
+        Bucket: bucketName,
         Key: key,
         Expires: expires
     })
