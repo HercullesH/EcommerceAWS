@@ -1,5 +1,5 @@
 import { Context, S3Event, S3EventRecord } from 'aws-lambda'
-import { ApiGatewayManagementApi, DynamoDB, S3 } from 'aws-sdk'
+import { ApiGatewayManagementApi, DynamoDB, EventBridge, S3 } from 'aws-sdk'
 import * as AWSXRay from 'aws-xray-sdk'
 import { InvoiceTransactionRepository, InvoiceTransactionStatus } from '/opt/nodejs/invoiceTransaction'
 import { InvoiceWSService } from '/opt/nodejs/invoiceWSConnection'
@@ -9,6 +9,7 @@ AWSXRay.captureAWS(require('aws-sdk'))
 
 const invoicesDdb = process.env.INVOICE_DDB!
 const invoiceWsApiEndpoint = process.env.INVOICE_WSAPI_ENDPOINT!.substring(6)
+const auditBusName = process.env.AUDIT_BUS_NAME!
 
 const s3Client = new S3()
 const ddbClient = new DynamoDB.DocumentClient()
@@ -19,6 +20,8 @@ const apigwManagementApi = new ApiGatewayManagementApi({
 const invoiceTransactionRepository = new InvoiceTransactionRepository(ddbClient, invoicesDdb)
 const invoiceWSService = new InvoiceWSService(apigwManagementApi)
 const invoiceRepository = new InvoiceRepository(ddbClient, invoicesDdb)
+
+const eventBridgeClient = new EventBridge()
 
 export async function handler(event: S3Event, context: Context): Promise<void> {
     const promises: Promise<void>[] = []
