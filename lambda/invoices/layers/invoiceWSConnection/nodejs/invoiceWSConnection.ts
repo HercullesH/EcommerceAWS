@@ -7,6 +7,32 @@ export class InvoiceWSService {
         this.apigwManagementApi = apigwManagementApi
     }
 
+    sendInvoiceStatus(transactionId: string, connectionId: string, status: string) {
+        const postData = JSON.stringify({
+            transactionId: transactionId,
+            status: status
+        })
+
+        return this.sendData(connectionId, postData)
+    }
+
+    async disconnectClient(connectionId: string): Promise<boolean> {
+        try {
+            await this.apigwManagementApi.getConnection({
+                ConnectionId: connectionId
+            }).promise()
+
+            this.apigwManagementApi.deleteConnection({
+                ConnectionId: connectionId
+            }).promise()
+
+            return true
+        } catch (error) {
+            console.log(error)
+            return false
+        }
+    }
+
     async sendData(connectionId: string, data: string): Promise<boolean> {
         await this.apigwManagementApi.getConnection({
             ConnectionId: connectionId
@@ -18,6 +44,5 @@ export class InvoiceWSService {
         }).promise()
         
         return true
-        
     }
 }
