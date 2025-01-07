@@ -5,7 +5,6 @@ AWSXRay.captureAWS(require('aws-sdk'))
 
 export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
     const connectionId = event.requestContext.connectionId!;
-    console.log(`New connection ID: ${connectionId}`);
 
     return {
         statusCode: 200,

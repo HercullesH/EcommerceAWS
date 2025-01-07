@@ -35,15 +35,8 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
         Expires: expires
     })
 
-    console.log('chegou no signedUrl', {
-        Bucket: bucketName,
-        Key: key,
-        Expires: expires
-    })
-
     const timestamp = Date.now()
     const ttl = ~~(timestamp / 1000) + ( 60 * 2 )
-    console.log('antes de montar invoice')
     const invoice = {
         pk: '#transaction',
         sk: key,
@@ -55,15 +48,8 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
         connectionId: connectionId,
         endpoint: invoiceWsApiEndpoint
     }
-    console.log('teste do objeto de invoice: ',invoice)
-    try {
-        await invoiceTransactionRepository.createInvoiceTransaction(invoice)
-    console.log('criou o invoice?')
-    } catch (error) {
-        console.error(error)
-    }
     
-    console.log('continua o código')
+    await invoiceTransactionRepository.createInvoiceTransaction(invoice)
     const postData = JSON.stringify({
         url: signedUrlPut,
         expires: expires,
