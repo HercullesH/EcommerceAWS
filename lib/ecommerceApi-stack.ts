@@ -3,6 +3,8 @@ import * as cdk from "aws-cdk-lib"
 import * as apigateway from "aws-cdk-lib/aws-apigateway"
 import * as cwlogs from "aws-cdk-lib/aws-logs"
 import { Construct } from "constructs"
+import * as cognito from 'aws-cdk-lib/aws-cognito'
+import * as lambda from 'aws-cdk-lib/aws-lambda'
 
 interface ECommerceApiStackProps extends cdk.StackProps {
     productsFetchHandler: lambdaNodeJS.NodejsFunction;
@@ -12,6 +14,10 @@ interface ECommerceApiStackProps extends cdk.StackProps {
 }
 
 export class EcommerceApiStack extends cdk.Stack {
+    private productsAuthorizer: apigateway.CognitoUserPoolsAuthorizer
+    private customerPool: cognito.UserPool
+    private adminPool: cognito.UserPool
+
     constructor(scope: Construct, id: string, props: ECommerceApiStackProps){
         super(scope, id , props)
 
@@ -35,8 +41,136 @@ export class EcommerceApiStack extends cdk.Stack {
             }
         })
 
+        this.createCognitoAuth()
         this.createProductsService(props, api)
         this.createOrdersService(props, api)
+    }
+
+    private createCognitoAuth() {
+        const postConfirmationHandler = new lambdaNodeJS.NodejsFunction(this, 'PostConfirmationFunction', {
+                    functionName: 'PostConfirmationFunction',
+                    entry: 'lambda/auth/postConfirmationFunction.ts',
+                    handler: 'handler',
+                    memorySize: 512,
+                    runtime: lambda.Runtime.NODEJS_20_X,
+                    timeout: cdk.Duration.seconds(2),
+                    bundling: {
+                        minify: true,
+                        sourceMap: false,
+                        nodeModules: [
+                            'aws-xray-sdk-core'
+                        ]
+                    },
+                    tracing: lambda.Tracing.ACTIVE,
+                    insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+        })
+
+        const preAuthenticationHandler = new lambdaNodeJS.NodejsFunction(this, 'PreAuthenticationFunction', {
+            functionName: 'PreAuthenticationFunction',
+            entry: 'lambda/auth/preAuthenticationFunction.ts',
+            handler: 'handler',
+            memorySize: 512,
+            runtime: lambda.Runtime.NODEJS_20_X,
+            timeout: cdk.Duration.seconds(2),
+            bundling: {
+                minify: true,
+                sourceMap: false,
+                nodeModules: [
+                    'aws-xray-sdk-core'
+                ]
+            },
+            tracing: lambda.Tracing.ACTIVE,
+            insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+        })
+
+        this.customerPool = new cognito.UserPool(this, 'CustomerPool', {
+            lambdaTriggers: {
+                preAuthentication: preAuthenticationHandler,
+                postConfirmation: postConfirmationHandler
+            },
+            userPoolName: 'CustomerPool',
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            selfSignUpEnabled: true,
+            autoVerify: {
+                email: true,
+                phone: false
+            },
+            userVerification: {
+                emailSubject: 'Verify your email for the Ecommerce service!',
+                emailBody: 'Thanks for signing up to Ecommerce service! your verification code is {####}',
+                emailStyle: cognito.VerificationEmailStyle.CODE
+            },
+            signInAliases: {
+                username: false,
+                email: true
+            },
+            standardAttributes: {
+                fullname: {
+                    required: true,
+                    mutable: false
+                }
+            },
+            passwordPolicy: {
+                minLength: 8,
+                requireLowercase: true,
+                requireUppercase: true,
+                requireDigits: true,
+                requireSymbols: true,
+                tempPasswordValidity: cdk.Duration.days(3)
+            },
+            accountRecovery: cognito.AccountRecovery.EMAIL_ONLY
+        })
+
+        this.customerPool.addDomain('CustomerDomain', {
+            cognitoDomain: {
+                domainPrefix: 'hhcms-customer-service'
+            }
+        })
+
+        const customerWebScope = new cognito.ResourceServerScope({
+            scopeName: 'web',
+            scopeDescription: 'Customer web operation'
+        })
+
+        const customerMobileScope = new cognito.ResourceServerScope({
+            scopeName: 'mobile',
+            scopeDescription: 'Customer mobile operation'
+        })
+
+        const customerResourceServer = this.customerPool.addResourceServer('CustomerResourceServer', {
+            identifier: 'customer',
+            userPoolResourceServerName: 'CustomerResourceServer',
+            scopes: [customerWebScope, customerMobileScope]
+        })
+
+        this.customerPool.addClient('customer-web-client', {
+            userPoolClientName: 'customerWebClient',
+            authFlows: {
+                userPassword: true
+            },
+            accessTokenValidity: cdk.Duration.minutes(60),
+            refreshTokenValidity: cdk.Duration.days(7),
+            oAuth: {
+                scopes: [cognito.OAuthScope.resourceServer(customerResourceServer, customerWebScope)]
+            }
+        })
+
+        this.customerPool.addClient('customer-mobile-client', {
+            userPoolClientName: 'customerMobileClient',
+            authFlows: {
+                userPassword: true
+            },
+            accessTokenValidity: cdk.Duration.minutes(60),
+            refreshTokenValidity: cdk.Duration.days(7),
+            oAuth: {
+                scopes: [cognito.OAuthScope.resourceServer(customerResourceServer, customerMobileScope)]
+            }
+        })
+
+        this.productsAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'ProductsAuthorizer', {
+            authorizerName: 'ProductsAuthorizer',
+            cognitoUserPools: [this.customerPool]
+        })
     }
 
     private createOrdersService(props: ECommerceApiStackProps, api: apigateway.RestApi) {
@@ -117,11 +251,23 @@ export class EcommerceApiStack extends cdk.Stack {
     private createProductsService(props: ECommerceApiStackProps, api: apigateway.RestApi) {
         const productsFetchIntegration  = new apigateway.LambdaIntegration(props.productsFetchHandler)
 
+        const productsFetchWebMobileIntegrationOption: cdk.aws_apigateway.MethodOptions = {
+            authorizer: this.productsAuthorizer,
+            authorizationType: apigateway.AuthorizationType.COGNITO,
+            authorizationScopes: ['customer/web', 'customer/mobile']
+        }
+
+        const productsFetchWebIntegrationOption: cdk.aws_apigateway.MethodOptions = {
+            authorizer: this.productsAuthorizer,
+            authorizationType: apigateway.AuthorizationType.COGNITO,
+            authorizationScopes: ['customer/web']
+        }
+
         const productsResource = api.root.addResource('products')
-        productsResource.addMethod('GET', productsFetchIntegration)
+        productsResource.addMethod('GET', productsFetchIntegration, productsFetchWebMobileIntegrationOption)
 
         const productIdResource = productsResource.addResource('{id}')
-        productIdResource.addMethod('GET', productsFetchIntegration)
+        productIdResource.addMethod('GET', productsFetchIntegration, productsFetchWebIntegrationOption)
 
         const productsAdminIntegration = new apigateway.LambdaIntegration(props.productsAdminHandler)
 
