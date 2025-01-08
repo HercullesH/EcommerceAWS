@@ -36,6 +36,9 @@ export class ProductsAppStack extends cdk.Stack {
         const productEventsLayerArn = ssm.StringParameter.valueForStringParameter(this, 'ProductEventsLayerVersionArn')
         const productEventsLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'ProductEventsLayerVersionArn', productEventsLayerArn)
 
+        const authUserInfoLayerArn = ssm.StringParameter.valueForStringParameter(this, 'AuthUserInfoLayerVersionArn')
+        const authUserInfoLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'AuthUserInfoLayerVersionArn', authUserInfoLayerArn)
+
         const productEventsHandler = new lambdaNodeJS.NodejsFunction(this, 'ProductsEventsFunction', {
             functionName: 'ProductsEventsFunction',
             entry: 'lambda/products/productEventsFunction.ts',
@@ -104,7 +107,7 @@ export class ProductsAppStack extends cdk.Stack {
                 PRODUCTS_DDB: this.productsDdb.tableName,
                 PRODUCT_EVENTS_FUNCTION_NAME: productEventsHandler.functionName
             },
-            layers: [productsLayer, productEventsLayer],
+            layers: [productsLayer, productEventsLayer, authUserInfoLayer],
             tracing: lambda.Tracing.ACTIVE,
             insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
         })

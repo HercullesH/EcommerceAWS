@@ -9,7 +9,7 @@ import { OrdersAppStack } from '../lib/ordersApp-stack';
 import { InvoiceWSApiStack } from '../lib/invoiceWSApi-stack';
 import { InvoicesAppLayersStack } from '../lib/invoicesAppLayers-stack'
 import { AuditEventBusStack } from '../lib/auditEventBus-stack'
-
+import { AuthLayersStack } from '../lib/authLayer-stack'
 //comando 'cdk bootstrap' execute apenas uma vez
 
 const app = new cdk.App();
@@ -32,6 +32,11 @@ const auditEventBus = new AuditEventBusStack(app, 'AuditEvents', {
     env: env
 })
 
+const authLayersStack = new AuthLayersStack(app, 'AuthLayers', {
+    tags: tags,
+    env: env
+})
+
 const productsAppLayersStack = new ProductsAppLayersStack(app, 'ProductsAppLayers', {
     tags: tags,
     env: env
@@ -49,6 +54,7 @@ const productsAppStack = new ProductsAppStack(app, 'ProductsApp', {
 })
 
 productsAppStack.addDependency(productsAppLayersStack)
+productsAppStack.addDependency(authLayersStack)
 productsAppStack.addDependency(eventsDdbStack)
 
 const ordersAppLayersStack = new OrdersAppLayersStack(app, 'OrdersAppLayers', {

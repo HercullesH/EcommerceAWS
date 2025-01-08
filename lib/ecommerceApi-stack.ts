@@ -5,7 +5,7 @@ import * as cwlogs from "aws-cdk-lib/aws-logs"
 import { Construct } from "constructs"
 import * as cognito from 'aws-cdk-lib/aws-cognito'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
-
+import * as iam from 'aws-cdk-lib/aws-iam'
 interface ECommerceApiStackProps extends cdk.StackProps {
     productsFetchHandler: lambdaNodeJS.NodejsFunction;
     productsAdminHandler: lambdaNodeJS.NodejsFunction;
@@ -43,6 +43,18 @@ export class EcommerceApiStack extends cdk.Stack {
         })
 
         this.createCognitoAuth()
+
+        const adminUserPolicyStatement = new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ['cognito-idp:AdminGetUser'],
+            resources: [this.adminPool.userPoolArn, this.customerPool.userPoolArn]
+        })
+
+        const adminUserPolicy = new iam.Policy(this, 'AdminGetUserPolicy', {
+            statements: [adminUserPolicyStatement]
+        })
+
+        adminUserPolicy.attachToRole(<iam.Role> props.productsAdminHandler.role)
         this.createProductsService(props, api)
         this.createOrdersService(props, api)
     }
@@ -335,22 +347,10 @@ export class EcommerceApiStack extends cdk.Stack {
 
         const productsAdminIntegration = new apigateway.LambdaIntegration(props.productsAdminHandler)
 
-        productsResource.addMethod('POST', productsAdminIntegration, {
-            authorizer: this.productsAdminAuthorizer,
-            authorizationType: apigateway.AuthorizationType.COGNITO,
-            authorizationScopes: ['admin/web']
-        })
+        productsResource.addMethod('POST', productsAdminIntegration, productsFetchWebMobileIntegrationOption)
 
-        productIdResource.addMethod('PUT', productsAdminIntegration, {
-            authorizer: this.productsAdminAuthorizer,
-            authorizationType: apigateway.AuthorizationType.COGNITO,
-            authorizationScopes: ['admin/web']
-        })
+        productIdResource.addMethod('PUT', productsAdminIntegration, productsFetchWebMobileIntegrationOption)
 
-        productIdResource.addMethod('DELETE', productsAdminIntegration, {
-            authorizer: this.productsAdminAuthorizer,
-            authorizationType: apigateway.AuthorizationType.COGNITO,
-            authorizationScopes: ['admin/web']
-        })
+        productIdResource.addMethod('DELETE', productsAdminIntegration, productsFetchWebMobileIntegrationOption)
     }
 }
