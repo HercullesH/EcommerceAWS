@@ -15,7 +15,7 @@ interface ECommerceApiStackProps extends cdk.StackProps {
 
 export class EcommerceApiStack extends cdk.Stack {
     private productsAuthorizer: apigateway.CognitoUserPoolsAuthorizer
-    private productsAdminAuthorizer: apigateway.CognitoUserPoolsAuthorizer
+    // private productsAdminAuthorizer: apigateway.CognitoUserPoolsAuthorizer
     private customerPool: cognito.UserPool
     private adminPool: cognito.UserPool
 
@@ -243,10 +243,10 @@ export class EcommerceApiStack extends cdk.Stack {
             cognitoUserPools: [this.customerPool, this.adminPool]
         })
 
-        this.productsAdminAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'ProductsAdminAuthorizer', {
-            authorizerName: 'ProductsAdminAuthorizer',
-            cognitoUserPools: [this.adminPool]
-        })
+        // this.productsAdminAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'ProductsAdminAuthorizer', {
+        //     authorizerName: 'ProductsAdminAuthorizer',
+        //     cognitoUserPools: [this.adminPool]
+        // })
     }
 
     private createOrdersService(props: ECommerceApiStackProps, api: apigateway.RestApi) {
