@@ -4,5 +4,10 @@ export async function handler(event: PreAuthenticationTriggerEvent, context: Con
     
     console.log(event)
 
+    // if (event.request.userAttributes.email === 'herculles.hendriuss@gmail.com') {
+    //     callback('this user is blocked. Reason: Payment', event)
+    // } else {
+    //     callback(null, event)
+    // }
     callback(null, event)
 }
